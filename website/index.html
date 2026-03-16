@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniGPT — Interactive Transformer Tutorial</title>
+  <meta name="description" content="Learn how GPT transformers work by exploring an interactive, visual breakdown of a working GPT model built from scratch with TensorFlow and Keras.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ====== HAMBURGER ====== -->
+<button class="hamburger" id="hamburger">☰</button>
+<div class="overlay" id="overlay"></div>
+
+<!-- ====== SIDEBAR ====== -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo">🧠 MiniGPT Guide</div>
+  <nav>
+    <a href="#overview"><span class="step-num">0</span> Overview</a>
+    <a href="#tokenization"><span class="step-num">1</span> Tokenization</a>
+    <a href="#training-data"><span class="step-num">2</span> Training Data</a>
+    <a href="#embeddings"><span class="step-num">3</span> Embeddings</a>
+    <a href="#attention"><span class="step-num">4</span> Attention</a>
+    <a href="#ffn"><span class="step-num">5</span> Feed-Forward</a>
+    <a href="#transformer"><span class="step-num">6</span> Full Model</a>
+    <a href="#training"><span class="step-num">7</span> Training</a>
+    <a href="#generation"><span class="step-num">8</span> Generation</a>
+    <a href="#summary"><span class="step-num">✓</span> Summary</a>
+  </nav>
+</aside>
+
+<!-- ====== HERO ====== -->
+<header class="hero">
+  <h1>🧠 MiniGPT</h1>
+  <p class="subtitle">An interactive, visual guide to understanding how GPT transformers work — line by line, concept by concept.</p>
+  <a href="#overview" class="cta">Start Learning ↓</a>
+</header>
+
+<!-- ====== CONTENT ====== -->
+<main class="content">
+
+  <!-- ===== SECTION 0: OVERVIEW ===== -->
+  <section id="overview">
+    <div class="section-header">
+      <div class="badge">0</div>
+      <h2>The Big Picture</h2>
+    </div>
+    <p class="section-intro">Before diving into code, let's understand what GPT actually does. It's simpler than you think!</p>
+
+    <div class="card">
+      <h3>💡 GPT in One Sentence</h3>
+      <p><strong>GPT reads text one character at a time, learns the patterns, and predicts what comes next.</strong></p>
+      <p style="margin-top:0.8rem;">That's it! All the fancy math (attention, embeddings, transformers) is just different ways of making that prediction more accurate.</p>
+    </div>
+
+    <div class="diagram">
+      <div class="diag-block input-b">
+        📝 Input: "ROMEO: O, she doth tea"
+        <div class="diag-tooltip">The raw text you feed to the model. It sees a sequence of characters.</div>
+      </div>
+      <div class="diag-arrow">↓</div>
+      <div class="diag-block emb">
+        🔢 Tokenize → Numbers
+        <div class="diag-tooltip">Convert each character to a number. 'R'→44, 'O'→41, etc. Neural nets only understand numbers!</div>
+      </div>
+      <div class="diag-arrow">↓</div>
+      <div class="diag-block emb">
+        📊 Embed → Vectors
+        <div class="diag-tooltip">Each number becomes a rich vector (list of numbers). These vectors capture meaning that the model learns during training.</div>
+      </div>
+      <div class="diag-arrow">↓</div>
+      <div class="diag-bracket">
+        <div class="diag-bracket-label">× N layers</div>
+        <div class="diag-block attn">
+          👀 Attention — "Which past chars matter?"
+          <div class="diag-tooltip">The model looks back at all previous characters and figures out which ones are most relevant for predicting the next one.</div>
+        </div>
+        <div class="diag-arrow">↓</div>
+        <div class="diag-block ffn">
+          ⚙️ Feed-Forward — "Process the info"
+          <div class="diag-tooltip">A small neural network that processes the combined information. Think of it as the model "thinking" about what it just read.</div>
+        </div>
+      </div>
+      <div class="diag-arrow">↓</div>
+      <div class="diag-block out">
+        🎯 Predict → next character = "c"
+        <div class="diag-tooltip">The model outputs a probability for each possible next character. "c" gets the highest probability (to complete "teach").</div>
+      </div>
+    </div>
+    <p style="text-align:center;color:var(--text3);font-size:0.85rem;">Hover over each block to learn more ↑</p>
+  </section>
+
+  <!-- ===== SECTION 1: TOKENIZATION ===== -->
+  <section id="tokenization">
+    <div class="section-header">
+      <div class="badge">1</div>
+      <h2>Tokenization</h2>
+    </div>
+    <p class="section-intro">Neural networks can't read text — they only understand numbers. Tokenization converts every character into a unique number.</p>
+
+    <div class="card">
+      <h3>🔤 How It Works</h3>
+      <ul>
+        <li>Find all <strong>unique characters</strong> in the Shakespeare text (a, b, c, ..., A, B, C, ..., !, ?, newline, space, etc.)</li>
+        <li>Sort them and assign each a <strong>unique ID</strong> (0, 1, 2, ...)</li>
+        <li><code>encode("Hi")</code> converts "Hi" → [20, 47]</li>
+        <li><code>decode([20, 47])</code> converts [20, 47] → "Hi"</li>
+      </ul>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span>step1_tokenize.py</span><button class="copy-btn">Copy</button></div>
+      <div class="code-body">
+        <div class="line"><span class="line-num">1</span><span class="line-content"><span class="tok-cm"># Read Shakespeare text</span></span></div>
+        <div class="line"><span class="line-num">2</span><span class="line-content">text = <span class="tok-builtin">open</span>(<span class="tok-str">"input.txt"</span>, encoding=<span class="tok-str">"utf-8"</span>).read()</span></div>
+        <div class="line"><span class="line-num">3</span><span class="line-content"></span></div>
+        <div class="line"><span class="line-num">4</span><span class="line-content"><span class="tok-cm"># Build character ↔ number mappings</span></span></div>
+        <div class="line"><span class="line-num">5</span><span class="line-content">chars = <span class="tok-builtin">sorted</span>(<span class="tok-builtin">set</span>(text))</span></div>
+        <div class="line"><span class="line-num">6</span><span class="line-content">vocab_size = <span class="tok-builtin">len</span>(chars)</span></div>
+        <div class="line"><span class="line-num">7</span><span class="line-content">ch2i = {c: i <span class="tok-kw">for</span> i, c <span class="tok-kw">in</span> <span class="tok-builtin">enumerate</span>(chars)}   <span class="tok-cm"># char  → number</span></span></div>
+        <div class="line"><span class="line-num">8</span><span class="line-content">i2ch = {i: c <span class="tok-kw">for</span> i, c <span class="tok-kw">in</span> <span class="tok-builtin">enumerate</span>(chars)}   <span class="tok-cm"># number → char</span></span></div>
+        <div class="line"><span class="line-num">9</span><span class="line-content"></span></div>
+        <div class="line"><span class="line-num">10</span><span class="line-content">encode = <span class="tok-kw">lambda</span> s: [ch2i[c] <span class="tok-kw">for</span> c <span class="tok-kw">in</span> s]</span></div>
+        <div class="line"><span class="line-num">11</span><span class="line-content">decode = <span class="tok-kw">lambda</span> l: <span class="tok-str">''</span>.join(i2ch[i] <span class="tok-kw">for</span> i <span class="tok-kw">in</span> l)</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📖 Line-by-Line Breakdown</h3>
+      <ul>
+        <li><strong>Line 2</strong> — Read the entire Shakespeare file into one long string</li>
+        <li><strong>Line 5</strong> — <code>set(text)</code> gets unique chars, <code>sorted()</code> puts them in order. Example: [' ', '!', 'A', 'B', ..., 'a', 'b', ...]</li>
+        <li><strong>Line 6</strong> — <code>vocab_size</code> = total unique characters (65 in Shakespeare). This is our "vocabulary"</li>
+        <li><strong>Lines 7-8</strong> — Two dictionaries: one maps char→number, the other maps number→char. These are inverse lookups</li>
+        <li><strong>Lines 10-11</strong> — <code>encode</code>: turns a string into a list of numbers. <code>decode</code>: reverses it back to text</li>
+      </ul>
+    </div>
+
+    <div class="demo-box">
+      <h4>🎮 Try It — Live Tokenizer</h4>
+      <p style="color:var(--text3);font-size:0.85rem;margin-bottom:0.75rem;">Type anything to see how character tokenization works:</p>
+      <input type="text" class="demo-input" id="tok-input" value="Hello World!" placeholder="Type here...">
+      <div class="demo-output" id="tok-output"></div>
+    </div>
+
+    <div class="card">
+      <h3>🤔 Why Character-Level?</h3>
+      <p>Real GPT uses <strong>subword tokens</strong> (pieces of words), but character-level is the simplest possible approach. Each character = 1 token. No complex tokenizer needed — just a dictionary lookup! It's perfect for learning.</p>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 2: TRAINING DATA ===== -->
+  <section id="training-data">
+    <div class="section-header">
+      <div class="badge">2</div>
+      <h2>Training Data</h2>
+    </div>
+    <p class="section-intro">How do we teach the model to predict the next character? By showing it millions of examples: "given these characters, the next one is..."</p>
+
+    <div class="card">
+      <h3>🪟 Sliding Window</h3>
+      <p>We slide a window of fixed size across the entire text. For each window position:</p>
+      <ul>
+        <li><strong>Input</strong> = first N characters (what the model sees)</li>
+        <li><strong>Target</strong> = same characters shifted by 1 (what it should predict)</li>
+      </ul>
+      <p style="margin-top:0.5rem;">So the target is the input shifted right by one character. The model learns: "given input, predict target".</p>
+    </div>
+
+    <div class="demo-box">
+      <h4>🎮 Try It — Slide the Window</h4>
+      <p style="color:var(--text3);font-size:0.85rem;margin-bottom:0.75rem;">Drag the slider to move the window across the text:</p>
+      <input type="range" class="temp-slider" id="window-slider" min="0" max="6" value="0">
+      <div id="window-container"></div>
+      <div class="window-legend" style="margin-top:0.75rem;">
+        <span class="lg-input">Input</span>
+        <span class="lg-target">Target</span>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span>step2_training_data.py</span><button class="copy-btn">Copy</button></div>
+      <div class="code-body">
+        <div class="line"><span class="line-num">1</span><span class="line-content">SEQ_LEN = <span class="tok-num">128</span>   <span class="tok-cm"># characters the model sees at once</span></span></div>
+        <div class="line"><span class="line-num">2</span><span class="line-content">BATCH   = <span class="tok-num">64</span></span></div>
+        <div class="line"><span class="line-num">3</span><span class="line-content"></span></div>
+        <div class="line"><span class="line-num">4</span><span class="line-content">data  = np.array(encode(text))</span></div>
+        <div class="line"><span class="line-num">5</span><span class="line-content">split = <span class="tok-builtin">int</span>(<span class="tok-num">0.9</span> * <span class="tok-builtin">len</span>(data))</span></div>
+        <div class="line"><span class="line-num">6</span><span class="line-content"></span></div>
+        <div class="line"><span class="line-num">7</span><span class="line-content"><span class="tok-kw">def</span> <span class="tok-fn">make_ds</span>(arr):</span></div>
+        <div class="line"><span class="line-num">8</span><span class="line-content">    ds = tf.data.Dataset.from_tensor_slices(arr)</span></div>
+        <div class="line"><span class="line-num">9</span><span class="line-content">    ds = ds.window(SEQ_LEN + <span class="tok-num">1</span>, shift=<span class="tok-num">1</span>, drop_remainder=<span class="tok-kw">True</span>)</span></div>
+        <div class="line"><span class="line-num">10</span><span class="line-content">    ds = ds.flat_map(<span class="tok-kw">lambda</span> w: w.batch(SEQ_LEN + <span class="tok-num">1</span>))</span></div>
+        <div class="line"><span class="line-num">11</span><span class="line-content">    ds = ds.map(<span class="tok-kw">lambda</span> s: (s[:-<span class="tok-num">1</span>], s[<span class="tok-num">1</span>:]))</span></div>
+        <div class="line"><span class="line-num">12</span><span class="line-content">    <span class="tok-kw">return</span> ds.shuffle(<span class="tok-num">10000</span>).batch(BATCH).prefetch(tf.data.AUTOTUNE)</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📖 Line-by-Line Breakdown</h3>
+      <ul>
+        <li><strong>Line 1</strong> — <code>SEQ_LEN = 128</code>: the model looks at 128 characters at a time. Longer = more context but slower training</li>
+        <li><strong>Line 4</strong> — Convert the ENTIRE text into numbers using our encode function. Result: one huge array of integers</li>
+        <li><strong>Line 5</strong> — Split: first 90% for training, last 10% for validation (to check if the model is learning, not memorizing)</li>
+        <li><strong>Line 8</strong> — <code>from_tensor_slices</code>: creates a TF dataset from the array (efficient data pipeline)</li>
+        <li><strong>Line 9</strong> — <code>.window(SEQ_LEN + 1)</code>: create sliding windows. We need +1 because the target is shifted by 1</li>
+        <li><strong>Line 10</strong> — <code>.flat_map</code>: convert each window from a lazy dataset into an actual tensor</li>
+        <li><strong>Line 11</strong> — <code>s[:-1]</code> = input (first 128 chars), <code>s[1:]</code> = target (last 128 chars). The shift-by-one trick!</li>
+        <li><strong>Line 12</strong> — <code>shuffle</code>: randomize order (prevents the model from memorizing sequence order). <code>batch</code>: process 64 sequences at once (faster). <code>prefetch</code>: load next batch while GPU is busy</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 3: EMBEDDINGS ===== -->
+  <section id="embeddings">
+    <div class="section-header">
+      <div class="badge">3</div>
+      <h2>Embeddings</h2>
+    </div>
+    <p class="section-intro">A single number (like 20 for 'H') can't capture meaning. Embeddings convert each token into a rich, learnable vector.</p>
+
+    <div class="card">
+      <h3>🧩 Token + Position Embeddings</h3>
+      <p>Two separate embedding layers work together:</p>
+      <ul>
+        <li><strong>Token Embedding:</strong> Each character ID → a learned vector. The model learns that 'a' and 'e' are similar (both vowels) by making their vectors close together.</li>
+        <li><strong>Position Embedding:</strong> Each position (0, 1, 2, ...) → a learned vector. This tells the model WHERE each character is. Without this, "abc" and "cab" would look identical!</li>
+        <li><strong>We add them together:</strong> final = tok_emb + pos_emb. The result carries both "what" and "where" information.</li>
+      </ul>
+    </div>
+
+    <div class="demo-box">
+      <h4>🎮 Visualization — Embedding the word "cat"</h4>
+      <p style="color:var(--text3);font-size:0.85rem;margin-bottom:0.75rem;">Each character gets a token vector + position vector. The sum is what enters the transformer. (Showing 4 dimensions; real model uses 128)</p>
+      <div id="embed-demo"></div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span>embeddings in MiniGPT.__init__</span><button class="copy-btn">Copy</button></div>
+      <div class="code-body">
+        <div class="line"><span class="line-num">1</span><span class="line-content"><span class="tok-self">self</span>.tok_emb = layers.Embedding(vocab_size, DIM)  <span class="tok-cm"># character → vector</span></span></div>
+        <div class="line"><span class="line-num">2</span><span class="line-content"><span class="tok-self">self</span>.pos_emb = layers.Embedding(SEQ_LEN, DIM)     <span class="tok-cm"># position  → vector</span></span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📖 Line-by-Line Breakdown</h3>
+      <ul>
+        <li><strong>Line 1</strong> — <code>Embedding(vocab_size, DIM)</code>: creates a learnable lookup table of size 65 × 128. Each of the 65 characters gets its own 128-dimensional vector. These vectors are randomly initialized and learned during training.</li>
+        <li><strong>Line 2</strong> — <code>Embedding(SEQ_LEN, DIM)</code>: creates a lookup table of size 128 × 128. Position 0 gets one vector, position 1 gets another, etc. This is how the model knows "this character is at position 5".</li>
+      </ul>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span>embeddings in MiniGPT.call()</span><button class="copy-btn">Copy</button></div>
+      <div class="code-body">
+        <div class="line"><span class="line-num">1</span><span class="line-content">x = <span class="tok-self">self</span>.tok_emb(x) + <span class="tok-self">self</span>.pos_emb(tf.range(tf.shape(x)[<span class="tok-num">1</span>]))</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📖 Explanation</h3>
+      <p><code>self.tok_emb(x)</code> looks up the vector for each character ID in the input. <code>self.pos_emb(tf.range(...))</code> looks up vectors for positions 0, 1, 2, .... Adding them together gives each position a combined "what character + where it is" representation.</p>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 4: ATTENTION ===== -->
+  <section id="attention">
+    <div class="section-header">
+      <div class="badge">4</div>
+      <h2>Causal Self-Attention</h2>
+    </div>
+    <p class="section-intro">This is the ❤️ of GPT. Attention lets each character look back at all previous characters and decide which ones are most relevant.</p>
+
+    <div class="card">
+      <h3>🤔 The Intuition</h3>
+      <p>Imagine you're reading: <em>"The cat sat on the ___"</em></p>
+      <p style="margin-top:0.5rem;">To predict the blank, you don't need every word equally. <strong>"cat"</strong> and <strong>"sat"</strong> are more useful than <strong>"the"</strong>. Attention automatically learns to focus on the important parts.</p>
+      <p style="margin-top:0.5rem;">Each character asks: <em>"Of all the characters before me, which ones should I pay attention to?"</em></p>
+    </div>
+
+    <div class="card">
+      <h3>🔒 Why "Causal"?</h3>
+      <p>In GPT, the model can only look <strong>backwards</strong> (at past characters), never forward. When predicting position 5, it can see positions 1-5, but NOT position 6+.</p>
+      <p style="margin-top:0.5rem;">This is enforced by a <strong>causal mask</strong> — a triangular matrix that blocks attention to future tokens:</p>
+    </div>
+
+    <div class="demo-box">
+      <h4>🎮 Causal Attention Mask for "Hello"</h4>
+      <p style="color:var(--text3);font-size:0.85rem;margin-bottom:0.75rem;">Each row shows what a character can see. 'H' can only see itself. 'e' can see 'H' and 'e'. And so on.</p>
+      <div id="mask-grid"></div>
+    </div>
+
+    <div class="card">
+      <h3>🧠 Multi-Head Attention</h3>
+      <p>Instead of one attention operation, we run <strong>4 in parallel</strong> (NUM_HEADS = 4). Each "head" can learn to focus on different things:</p>
+      <ul>
+        <li>Head 1 might focus on <strong>grammar patterns</strong></li>
+        <li>Head 2 might focus on <strong>character names</strong></li>
+        <li>Head 3 might focus on <strong>nearby characters</strong></li>
+        <li>Head 4 might focus on <strong>sentence structure</strong></li>
+      </ul>
+      <p style="margin-top:0.5rem;">Their results are combined for a richer understanding. Each head operates on DIM/HEADS = 32 dimensions.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span>attention in MiniGPT</span><button class="copy-btn">Copy</button></div>
+      <div class="code-body">
+        <div class="line"><span class="line-num">1</span><span class="line-content"><span class="tok-cm"># In __init__:</span></span></div>
+        <div class="line"><span class="line-num">2</span><span class="line-content"><span class="tok-self">self</span>.attn = [layers.MultiHeadAttention(HEADS, DIM // HEADS) <span class="tok-kw">for</span> _ <span class="tok-kw">in</span> <span class="tok-builtin">range</span>(NLAYERS)]</span></div>
+        <div class="line"><span class="line-num">3</span><span class="line-content"></span></div>
+        <div class="line"><span class="line-num">4</span><span class="line-content"><span class="tok-cm"># In call(): for each layer i</span></span></div>
+        <div class="line"><span class="line-num">5</span><span class="line-content">x = <span class="tok-self">self</span>.norm[<span class="tok-num">2</span>*i](x + <span class="tok-self">self</span>.attn[i](x, x, use_causal_mask=<span class="tok-kw">True</span>))</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📖 Line-by-Line Breakdown</h3>
+      <ul>
+        <li><strong>Line 2</strong> — Create a list of attention layers (one per transformer block). <code>MultiHeadAttention(4, 32)</code> = 4 heads, each with 32 dimensions</li>
+        <li><strong>Line 5</strong> — <code>self.attn[i](x, x, use_causal_mask=True)</code>: The input x is used as both the query AND the value. This is "self-attention" — the sequence attends to itself. <code>use_causal_mask=True</code> is the magic flag that prevents looking at future tokens</li>
+        <li><strong>Line 5</strong> — <code>x + ...</code>: This is a <strong>residual connection</strong>. We add the attention output BACK to the original input</li>
+        <li><strong>Line 5</strong> — <code>self.norm[...]()</code>: <strong>Layer Normalization</strong> keeps the values stable during training</li>
+      </ul>
+    </div>
+
+    <div class="demo-box">
+      <h4>🎮 Residual Connection — Step by Step</h4>
+      <p style="color:var(--text3);font-size:0.85rem;margin-bottom:0.75rem;">Click "Next" to walk through how the residual connection works:</p>
+      <div id="residual-viz"></div>
+      <button class="demo-btn" id="residual-btn">Next →</button>
+    </div>
+
+    <div class="card">
+      <h3>🤔 Why Residual Connections?</h3>
+      <p>When you stack many layers, information can get lost or distorted (the "vanishing gradient" problem). Residual connections create a <strong>shortcut</strong> — the original input is always added back. This means:</p>
+      <ul>
+        <li>Even if a layer learns nothing useful, the information survives</li>
+        <li>Gradients can flow directly through the shortcut during training</li>
+        <li>It makes training deep networks much easier and faster</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 5: FEED-FORWARD ===== -->
+  <section id="ffn">
+    <div class="section-header">
+      <div class="badge">5</div>
+      <h2>Feed-Forward Network</h2>
+    </div>
+    <p class="section-intro">After attention gathers context, the feed-forward network processes it. It's just two Dense layers.</p>
+
+    <div class="card">
+      <h3>⚙️ What It Does</h3>
+      <p>The feed-forward network (FFN) is applied to <strong>each position independently</strong>. Think of it as each character having its own little brain that thinks about the context gathered by attention.</p>
+      <ul>
+        <li><strong>Layer 1 — Expand:</strong> Project from 128 dimensions → 512 dimensions (with ReLU activation). This gives the model more "room to think".</li>
+        <li><strong>Layer 2 — Compress:</strong> Project back from 512 → 128 dimensions.</li>
+        <li><strong>Dropout:</strong> Randomly zeroes out 10% of values during training. This prevents overfitting (memorizing instead of learning patterns).</li>
+      </ul>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span>feed-forward in MiniGPT</span><button class="copy-btn">Copy</button></div>
+      <div class="code-body">
+        <div class="line"><span class="line-num">1</span><span class="line-content"><span class="tok-cm"># In __init__:</span></span></div>
+        <div class="line"><span class="line-num">2</span><span class="line-content"><span class="tok-self">self</span>.ffn = [keras.Sequential([layers.Dense(FF, activation=<span class="tok-str">"relu"</span>),</span></div>
+        <div class="line"><span class="line-num">3</span><span class="line-content">                               layers.Dense(DIM), layers.Dropout(<span class="tok-num">0.1</span>)])</span></div>
+        <div class="line"><span class="line-num">4</span><span class="line-content">             <span class="tok-kw">for</span> _ <span class="tok-kw">in</span> <span class="tok-builtin">range</span>(NLAYERS)]</span></div>
+        <div class="line"><span class="line-num">5</span><span class="line-content"></span></div>
+        <div class="line"><span class="line-num">6</span><span class="line-content"><span class="tok-cm"># In call(): for each layer i</span></span></div>
+        <div class="line"><span class="line-num">7</span><span class="line-content">x = <span class="tok-self">self</span>.norm[<span class="tok-num">2</span>*i+<span class="tok-num">1</span>](x + <span class="tok-self">self</span>.ffn[i](x))</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📖 Line-by-Line Breakdown</h3>
+      <ul>
+        <li><strong>Lines 2-4</strong> — Create a list of FFNs (one per transformer block). Each is a <code>Sequential</code> model: Dense(512, relu) → Dense(128) → Dropout(0.1). We create NLAYERS of these.</li>
+        <li><strong>Line 7</strong> — Same pattern as attention: <code>x + self.ffn[i](x)</code> = residual connection (add input back), then <code>self.norm[...]()</code> = layer normalization.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>🤔 Why ReLU?</h3>
+      <p><strong>ReLU</strong> (Rectified Linear Unit) is the simplest activation function: <code>relu(x) = max(0, x)</code>. It just zeroes out negative numbers. Without an activation function, stacked Dense layers would collapse into a single linear transformation — you'd get no benefit from depth. ReLU adds <strong>non-linearity</strong>, letting the network learn complex patterns.</p>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 6: FULL MODEL ===== -->
+  <section id="transformer">
+    <div class="section-header">
+      <div class="badge">6</div>
+      <h2>The Full MiniGPT Model</h2>
+    </div>
+    <p class="section-intro">Now let's see how all the pieces fit together in one class. This is the entire GPT architecture!</p>
+
+    <div class="code-block">
+      <div class="code-header"><span>minigpt_model.py — The Complete Model</span><button class="copy-btn">Copy</button></div>
+      <div class="code-body">
+        <div class="line"><span class="line-num">1</span><span class="line-content"><span class="tok-kw">class</span> <span class="tok-cls">MiniGPT</span>(keras.Model):</span></div>
+        <div class="line"><span class="line-num">2</span><span class="line-content">    <span class="tok-kw">def</span> <span class="tok-fn">__init__</span>(<span class="tok-self">self</span>):</span></div>
+        <div class="line"><span class="line-num">3</span><span class="line-content">        <span class="tok-builtin">super</span>().__init__()</span></div>
+        <div class="line"><span class="line-num">4</span><span class="line-content">        <span class="tok-self">self</span>.tok_emb = layers.Embedding(vocab_size, DIM)</span></div>
+        <div class="line"><span class="line-num">5</span><span class="line-content">        <span class="tok-self">self</span>.pos_emb = layers.Embedding(SEQ_LEN, DIM)</span></div>
+        <div class="line"><span class="line-num">6</span><span class="line-content"></span></div>
+        <div class="line"><span class="line-num">7</span><span class="line-content">        <span class="tok-self">self</span>.attn = [layers.MultiHeadAttention(HEADS, DIM // HEADS) <span class="tok-kw">for</span> _ <span class="tok-kw">in</span> <span class="tok-builtin">range</span>(NLAYERS)]</span></div>
+        <div class="line"><span class="line-num">8</span><span class="line-content">        <span class="tok-self">self</span>.ffn  = [keras.Sequential([layers.Dense(FF, activation=<span class="tok-str">"relu"</span>),</span></div>
+        <div class="line"><span class="line-num">9</span><span class="line-content">                                       layers.Dense(DIM), layers.Dropout(<span class="tok-num">0.1</span>)])</span></div>
+        <div class="line"><span class="line-num">10</span><span class="line-content">                     <span class="tok-kw">for</span> _ <span class="tok-kw">in</span> <span class="tok-builtin">range</span>(NLAYERS)]</span></div>
+        <div class="line"><span class="line-num">11</span><span class="line-content">        <span class="tok-self">self</span>.norm = [layers.LayerNormalization() <span class="tok-kw">for</span> _ <span class="tok-kw">in</span> <span class="tok-builtin">range</span>(NLAYERS * <span class="tok-num">2</span>)]</span></div>
+        <div class="line"><span class="line-num">12</span><span class="line-content">        <span class="tok-self">self</span>.head = layers.Dense(vocab_size)</span></div>
+        <div class="line"><span class="line-num">13</span><span class="line-content"></span></div>
+        <div class="line"><span class="line-num">14</span><span class="line-content">    <span class="tok-kw">def</span> <span class="tok-fn">call</span>(<span class="tok-self">self</span>, x):</span></div>
+        <div class="line"><span class="line-num">15</span><span class="line-content">        x = <span class="tok-self">self</span>.tok_emb(x) + <span class="tok-self">self</span>.pos_emb(tf.range(tf.shape(x)[<span class="tok-num">1</span>]))</span></div>
+        <div class="line"><span class="line-num">16</span><span class="line-content">        <span class="tok-kw">for</span> i <span class="tok-kw">in</span> <span class="tok-builtin">range</span>(NLAYERS):</span></div>
+        <div class="line"><span class="line-num">17</span><span class="line-content">            x = <span class="tok-self">self</span>.norm[<span class="tok-num">2</span>*i](x + <span class="tok-self">self</span>.attn[i](x, x, use_causal_mask=<span class="tok-kw">True</span>))</span></div>
+        <div class="line"><span class="line-num">18</span><span class="line-content">            x = <span class="tok-self">self</span>.norm[<span class="tok-num">2</span>*i+<span class="tok-num">1</span>](x + <span class="tok-self">self</span>.ffn[i](x))</span></div>
+        <div class="line"><span class="line-num">19</span><span class="line-content">        <span class="tok-kw">return</span> <span class="tok-self">self</span>.head(x)</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📖 Complete Breakdown</h3>
+      <ul>
+        <li><strong>Line 1</strong> — We inherit from <code>keras.Model</code> so Keras handles training, saving, etc. for us</li>
+        <li><strong>Lines 4-5</strong> — <strong>Embeddings:</strong> token + position (already explained in Section 3)</li>
+        <li><strong>Line 7</strong> — <strong>Attention layers:</strong> one per transformer block. 4 heads × 32 dims each = 128 dims total</li>
+        <li><strong>Lines 8-10</strong> — <strong>Feed-forward networks:</strong> one per block. Dense(512, relu) → Dense(128) → Dropout</li>
+        <li><strong>Line 11</strong> — <strong>Layer norms:</strong> NLAYERS × 2 because each block needs TWO norms (one after attention, one after FFN)</li>
+        <li><strong>Line 12</strong> — <strong>Output head:</strong> Dense(vocab_size) projects from 128 dims to 65 (one score per character)</li>
+        <li><strong>Line 15</strong> — <strong>Combine embeddings:</strong> add token + position vectors</li>
+        <li><strong>Lines 16-18</strong> — <strong>The main loop:</strong> for each layer, do attention then FFN (both with residual + norm)</li>
+        <li><strong>Line 19</strong> — <strong>Output:</strong> convert final vectors to raw scores (logits) over all possible next characters</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>📐 Tensor Shapes Through the Model</h3>
+      <p style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;line-height:2;">
+        <span style="color:var(--text3);">Input:</span> <span style="color:var(--accent2);">(64, 128)</span> — batch of 64 sequences, each 128 chars<br>
+        <span style="color:var(--text3);">After embedding:</span> <span style="color:var(--blue);">(64, 128, 128)</span> — each char is now a 128-dim vector<br>
+        <span style="color:var(--text3);">Through transformer blocks:</span> <span style="color:var(--pink);">(64, 128, 128)</span> — shape stays the same!<br>
+        <span style="color:var(--text3);">After output head:</span> <span style="color:var(--orange);">(64, 128, 65)</span> — 65 scores per position (one per possible char)
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 7: TRAINING ===== -->
+  <section id="training">
+    <div class="section-header">
+      <div class="badge">7</div>
+      <h2>Training</h2>
+    </div>
+    <p class="section-intro">We tell Keras what loss function and optimizer to use, and then let it train the model on our data.</p>
+
+    <div class="code-block">
+      <div class="code-header"><span>step4_train.py</span><button class="copy-btn">Copy</button></div>
+      <div class="code-body">
+        <div class="line"><span class="line-num">1</span><span class="line-content">model = MiniGPT()</span></div>
+        <div class="line"><span class="line-num">2</span><span class="line-content">model.compile(</span></div>
+        <div class="line"><span class="line-num">3</span><span class="line-content">    loss=keras.losses.SparseCategoricalCrossentropy(from_logits=<span class="tok-kw">True</span>),</span></div>
+        <div class="line"><span class="line-num">4</span><span class="line-content">    optimizer=keras.optimizers.Adam(<span class="tok-num">3e-4</span>),</span></div>
+        <div class="line"><span class="line-num">5</span><span class="line-content">    metrics=[<span class="tok-str">"accuracy"</span>],</span></div>
+        <div class="line"><span class="line-num">6</span><span class="line-content">)</span></div>
+        <div class="line"><span class="line-num">7</span><span class="line-content"></span></div>
+        <div class="line"><span class="line-num">8</span><span class="line-content">history = model.fit(</span></div>
+        <div class="line"><span class="line-num">9</span><span class="line-content">    train_ds, validation_data=val_ds, epochs=<span class="tok-num">20</span>,</span></div>
+        <div class="line"><span class="line-num">10</span><span class="line-content">    callbacks=[keras.callbacks.EarlyStopping(<span class="tok-str">"val_loss"</span>, patience=<span class="tok-num">3</span>,</span></div>
+        <div class="line"><span class="line-num">11</span><span class="line-content">               restore_best_weights=<span class="tok-kw">True</span>)],</span></div>
+        <div class="line"><span class="line-num">12</span><span class="line-content">)</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📖 Line-by-Line Breakdown</h3>
+      <ul>
+        <li><strong>Line 1</strong> — Create an instance of our model (all layers get randomly initialized)</li>
+        <li><strong>Line 3</strong> — <strong>Loss function:</strong> <code>SparseCategoricalCrossentropy</code> measures how wrong the predictions are. "Sparse" because our targets are integers (not one-hot). <code>from_logits=True</code> because our model outputs raw scores, not probabilities</li>
+        <li><strong>Line 4</strong> — <strong>Adam optimizer</strong> with learning rate 3×10⁻⁴. Adam adapts the learning rate for each parameter individually, making training more stable. The learning rate controls how big each update step is</li>
+        <li><strong>Line 5</strong> — Track accuracy: what % of next-character predictions are correct</li>
+        <li><strong>Lines 8-9</strong> — <strong>model.fit()</strong>: the training loop! Iterate through training data for up to 20 epochs, checking validation loss after each epoch</li>
+        <li><strong>Lines 10-11</strong> — <strong>EarlyStopping:</strong> if validation loss doesn't improve for 3 consecutive epochs, stop training and restore the best weights. This prevents overfitting!</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>🔄 What Happens Each Epoch</h3>
+      <ul>
+        <li><strong>Forward pass:</strong> input goes through the model → predictions come out</li>
+        <li><strong>Loss calculation:</strong> compare predictions to actual targets → get a "wrongness" score</li>
+        <li><strong>Backward pass (backpropagation):</strong> calculate how each weight contributed to the error</li>
+        <li><strong>Update weights:</strong> Adam adjusts all weights slightly to reduce the loss</li>
+        <li><strong>Repeat</strong> for every batch in the dataset = 1 epoch</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 8: GENERATION ===== -->
+  <section id="generation">
+    <div class="section-header">
+      <div class="badge">8</div>
+      <h2>Text Generation</h2>
+    </div>
+    <p class="section-intro">After training, we can generate new text by feeding a prompt and letting the model predict one character at a time.</p>
+
+    <div class="code-block">
+      <div class="code-header"><span>step5_generate.py</span><button class="copy-btn">Copy</button></div>
+      <div class="code-body">
+        <div class="line"><span class="line-num">1</span><span class="line-content"><span class="tok-kw">def</span> <span class="tok-fn">generate</span>(prompt, length=<span class="tok-num">500</span>, temperature=<span class="tok-num">0.8</span>):</span></div>
+        <div class="line"><span class="line-num">2</span><span class="line-content">    ids = encode(prompt)</span></div>
+        <div class="line"><span class="line-num">3</span><span class="line-content">    <span class="tok-kw">for</span> _ <span class="tok-kw">in</span> <span class="tok-builtin">range</span>(length):</span></div>
+        <div class="line"><span class="line-num">4</span><span class="line-content">        x = tf.constant([ids[-SEQ_LEN:]])</span></div>
+        <div class="line"><span class="line-num">5</span><span class="line-content">        logits = model(x, training=<span class="tok-kw">False</span>)[<span class="tok-num">0</span>, -<span class="tok-num">1</span>] / temperature</span></div>
+        <div class="line"><span class="line-num">6</span><span class="line-content">        ids.append(<span class="tok-builtin">int</span>(tf.random.categorical([logits], <span class="tok-num">1</span>)[<span class="tok-num">0</span>, <span class="tok-num">0</span>]))</span></div>
+        <div class="line"><span class="line-num">7</span><span class="line-content">    <span class="tok-kw">return</span> decode(ids)</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📖 Line-by-Line Breakdown</h3>
+      <ul>
+        <li><strong>Line 2</strong> — Encode the prompt string into token IDs</li>
+        <li><strong>Line 3</strong> — Loop: generate one character at a time, 500 times</li>
+        <li><strong>Line 4</strong> — Take the last SEQ_LEN (128) characters as context. Wrap in a list and convert to tensor (adds batch dimension)</li>
+        <li><strong>Line 5</strong> — Get model predictions. <code>[0, -1]</code> extracts the logits for the LAST position only (that's the next-character prediction). <code>/ temperature</code> scales the confidence</li>
+        <li><strong>Line 6</strong> — <code>tf.random.categorical</code> samples a character from the probability distribution. Higher probability characters are more likely to be chosen, but there's randomness!</li>
+        <li><strong>Line 7</strong> — Decode all the IDs back to text and return</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>🌡️ Temperature — Controls Creativity</h3>
+      <p>Temperature scales the logits before sampling. It changes how "sharp" or "flat" the probability distribution is:</p>
+    </div>
+
+    <div class="demo-box">
+      <h4>🎮 Try It — Temperature Effect</h4>
+      <p style="color:var(--text3);font-size:0.85rem;margin-bottom:0.75rem;">Drag the slider to see how temperature affects the probability distribution for the next character:</p>
+      <div class="temp-slider-wrap">
+        <span style="font-size:0.8rem;color:var(--text3);">Predictable</span>
+        <input type="range" class="temp-slider" id="temp-slider" min="0.1" max="3.0" step="0.1" value="1.0">
+        <span style="font-size:0.8rem;color:var(--text3);">Creative</span>
+        <span class="temp-val" id="temp-val">1.0</span>
+      </div>
+      <div class="prob-bars" id="prob-bars"></div>
+      <div style="display:flex;justify-content:space-between;color:var(--text3);font-size:0.8rem;margin-top:0.5rem;">
+        <span>← Most likely</span>
+        <span>Least likely →</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🤔 How Sampling Works</h3>
+      <ul>
+        <li><strong>Low temperature (0.2):</strong> The highest-probability character dominates. Output is repetitive but coherent.</li>
+        <li><strong>Temperature = 1.0:</strong> Original probabilities. Balanced creativity.</li>
+        <li><strong>High temperature (2.0+):</strong> All characters become roughly equally likely. Output is random and creative but may be nonsensical.</li>
+        <li><strong>Greedy (temp→0):</strong> Always pick the highest probability character. Deterministic but boring.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===== SUMMARY ===== -->
+  <section id="summary">
+    <div class="section-header">
+      <div class="badge">✓</div>
+      <h2>Summary — You Built a GPT!</h2>
+    </div>
+
+    <div class="card">
+      <h3>🏗️ Everything We Built</h3>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.7rem;font-weight:600;color:var(--blue);">Character Tokenizer</td>
+            <td style="padding:0.7rem;color:var(--text2);">Converts text ↔ numbers so the neural network can process it</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.7rem;font-weight:600;color:var(--blue);">Token Embedding</td>
+            <td style="padding:0.7rem;color:var(--text2);">Converts each character ID into a rich, learnable 128-dim vector</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.7rem;font-weight:600;color:var(--green);">Position Embedding</td>
+            <td style="padding:0.7rem;color:var(--text2);">Adds position info so the model knows WHERE characters are</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.7rem;font-weight:600;color:var(--pink);">Causal Self-Attention</td>
+            <td style="padding:0.7rem;color:var(--text2);">Lets each character look back at relevant past characters</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.7rem;font-weight:600;color:var(--green);">Feed-Forward Network</td>
+            <td style="padding:0.7rem;color:var(--text2);">Processes the attention output with Dense layers</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.7rem;font-weight:600;color:var(--orange);">Residual + LayerNorm</td>
+            <td style="padding:0.7rem;color:var(--text2);">Stabilizes training and preserves information through deep layers</td>
+          </tr>
+          <tr>
+            <td style="padding:0.7rem;font-weight:600;color:var(--orange);">Output Head</td>
+            <td style="padding:0.7rem;color:var(--text2);">Converts vectors into next-character probabilities</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🌟 Key Takeaways</h3>
+      <ul>
+        <li><strong>GPT is autoregressive</strong> — it predicts one token at a time, left to right</li>
+        <li><strong>Everything is about next-token prediction</strong> — the entire model is trained to predict the next character</li>
+        <li><strong>Attention</strong> is the magic sauce — it lets the model dynamically focus on relevant context</li>
+        <li><strong>The causal mask</strong> prevents cheating — no looking at future tokens</li>
+        <li><strong>Residual connections</strong> make deep networks trainable by preserving information</li>
+        <li><strong>Temperature</strong> controls the creativity-coherence tradeoff at generation time</li>
+        <li><strong>This same architecture</strong> (scaled up massively) powers ChatGPT, GPT-4, and other large language models!</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>🚀 Want Better Results?</h3>
+      <ul>
+        <li>Increase <code>DIM</code> (128 → 256+) for richer representations</li>
+        <li>Increase <code>NLAYERS</code> (4 → 8+) for deeper understanding</li>
+        <li>Increase <code>HEADS</code> (4 → 8+) for more diverse attention patterns</li>
+        <li>Train for more <code>epochs</code> on a GPU</li>
+        <li>Use a larger dataset</li>
+        <li>Switch from character-level to subword tokenization (like real GPT)</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>🧠 MiniGPT Interactive Guide — Built to help you understand transformers from the ground up.</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
